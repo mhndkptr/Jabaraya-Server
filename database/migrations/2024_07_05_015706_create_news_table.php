@@ -14,12 +14,10 @@ return new class extends Migration
         Schema::create('news', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->text('content');
             $table->string('thumbnail');
+            $table->text('content');
             $table->string('link');
-            $table->unsignedBigInteger('category_id');
             $table->timestamps();
-            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
         });
     }
 

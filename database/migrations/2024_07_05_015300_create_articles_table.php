@@ -14,11 +14,9 @@ return new class extends Migration
         Schema::create('articles', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->text('content');
             $table->string('thumbnail');
-            $table->unsignedBigInteger('category_id');
+            $table->text('content');
             $table->timestamps();
-            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
         });
     }
 
