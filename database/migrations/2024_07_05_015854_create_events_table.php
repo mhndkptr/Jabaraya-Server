@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('location')->nullable();
             $table->text('content')->nullable();
             $table->text('link')->nullable();
+            $table->unsignedBigInteger('category_id');
+            $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
             $table->timestamps();
         });
     }
