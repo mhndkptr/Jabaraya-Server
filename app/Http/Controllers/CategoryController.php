@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\category;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -12,7 +13,8 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        //
+        $category = category::get();
+        return response()->json($category);
     }
 
     /**
@@ -28,7 +30,13 @@ class CategoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+        $category = Category::create($validatedData);
+
+        return response()->json($category, 201)
+            ->header('Content-Type', 'application/json');
     }
 
     /**
@@ -36,7 +44,7 @@ class CategoryController extends Controller
      */
     public function show(category $category)
     {
-        //
+        return response()->json($category);
     }
 
     /**
@@ -52,7 +60,13 @@ class CategoryController extends Controller
      */
     public function update(Request $request, category $category)
     {
-        //
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+        $category->update($validatedData);
+
+        return response()->json($category, 200)
+            ->header('Content-Type', 'application/json');
     }
 
     /**
@@ -60,6 +74,7 @@ class CategoryController extends Controller
      */
     public function destroy(category $category)
     {
-        //
+        $category->delete();
+        return response()->json(['message' => 'Deleted']);
     }
 }
