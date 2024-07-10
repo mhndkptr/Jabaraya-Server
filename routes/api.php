@@ -28,9 +28,6 @@ Route::middleware('auth:api')->group(function () {
 Route::get('login/{provider}', [SocialAuthController::class, 'redirectToProvider']);
 Route::get('login/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
 Route::apiResource('categorys', CategoryController::class);
 Route::apiResource('articles', ArticleController::class);
 Route::apiResource('news', NewsController::class);
