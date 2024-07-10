@@ -5,6 +5,9 @@ use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ArticleController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\NewsController;
 
 // Auth Routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -24,3 +27,10 @@ Route::middleware('auth:api')->group(function () {
 // Social Routes
 Route::get('login/{provider}', [SocialAuthController::class, 'redirectToProvider']);
 Route::get('login/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
+
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+Route::apiResource('categorys', CategoryController::class);
+Route::apiResource('articles', ArticleController::class);
+Route::apiResource('news', NewsController::class);
