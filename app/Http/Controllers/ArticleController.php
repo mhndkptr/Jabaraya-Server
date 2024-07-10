@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\article;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ArticleController extends Controller
 {
@@ -12,7 +13,7 @@ class ArticleController extends Controller
      */
     public function index()
     {
-        //
+        return Article::all();
     }
 
     /**
@@ -28,7 +29,22 @@ class ArticleController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'content' => 'required|string',
+        ]);
+
+        $data = $request->all();
+
+        if ($request->hasFile('thumbnail')) {
+            $path = $request->file('thumbnail')->store('thumbnails', 'public');
+            $data['thumbnail'] = $path;
+        }
+
+        $article = Article::create($data);
+
+        return response()->json($article, 201);
     }
 
     /**
@@ -36,7 +52,7 @@ class ArticleController extends Controller
      */
     public function show(article $article)
     {
-        //
+        return response()->json($article);
     }
 
     /**
@@ -52,7 +68,21 @@ class ArticleController extends Controller
      */
     public function update(Request $request, article $article)
     {
-        //
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'content' => 'required|string',
+        ]);
+        $data = $request->all();
+        if ($request->hasFile('thumbnail')) {
+            if ($article->thumbnail) {
+                Storage::disk('public')->delete($article->thumbnail);
+            }
+            $path = $request->file('thumbnail')->store('thumbnails', 'public');
+            $data['thumbnail'] = $path;
+        }
+        $article->update($data);
+        return response()->json($article, 200);
     }
 
     /**
@@ -60,6 +90,12 @@ class ArticleController extends Controller
      */
     public function destroy(article $article)
     {
-        //
+        if ($article->thumbnail) {
+            Storage::disk('public')->delete($article->thumbnail);
+        }
+
+        $article->delete();
+
+        return response()->json(['message' => 'Deleted']);
     }
 }
