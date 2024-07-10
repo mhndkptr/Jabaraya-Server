@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Foundation\AliasLoader;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,7 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        AliasLoader::getInstance([
+            'Firebase' => \Kreait\Laravel\Firebase\Facades\Firebase::class,
+        ]);
     }
 
     /**
@@ -19,6 +23,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Passport::personalAccessTokensExpireIn(now()->addDays(3)); 
     }
 }
