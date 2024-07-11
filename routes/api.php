@@ -29,6 +29,11 @@ Route::get('login/{provider}', [SocialAuthController::class, 'redirectToProvider
 Route::get('login/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
 
 // API Resources
-Route::apiResource('categories', CategoryController::class);
+// Route for categorys
+Route::apiResource('categorys', CategoryController::class);
+// Route for articles
 Route::apiResource('articles', ArticleController::class);
+Route::post('articles/upload-image', [ArticleController::class, 'uploadImage']);
+// Route for news
 Route::apiResource('news', NewsController::class);
+Route::post('news/upload-image', [NewsController::class, 'uploadImage']);
