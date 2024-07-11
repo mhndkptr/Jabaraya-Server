@@ -69,9 +69,9 @@ class ArticleController extends Controller
     public function update(Request $request, article $article)
     {
         $request->validate([
-            'title' => 'required|string|max:255',
+            'title' => 'sometimes|string|max:255',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'content' => 'required|string',
+            'content' => 'sometimes|string',
         ]);
         $data = $request->all();
         if ($request->hasFile('thumbnail')) {
