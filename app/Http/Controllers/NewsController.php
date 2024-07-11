@@ -70,10 +70,10 @@ class NewsController extends Controller
     public function update(Request $request, news $news)
     {
         $request->validate([
-            'title' => 'required|string|max:255',
+            'title' => 'sometimes|string|max:255',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'content' => 'required|string',
-            'link' => 'required|string',
+            'content' => 'sometimes|string',
+            'link' => 'sometimes|string',
         ]);
 
         $data = $request->all();
