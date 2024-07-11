@@ -47,6 +47,21 @@ class NewsController extends Controller
 
         return response()->json($news, 201);
     }
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'upload' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+        ]);
+
+        if ($request->hasFile('upload')) {
+            $path = $request->file('upload')->store('images', 'public');
+            $url = Storage::url($path);
+
+            return response()->json(['url' => $url], 200);
+        }
+
+        return response()->json(['message' => 'No image uploaded'], 400);
+    }
 
     /**
      * Display the specified resource.
@@ -79,6 +94,9 @@ class NewsController extends Controller
         $data = $request->all();
 
         if ($request->hasFile('thumbnail')) {
+            if ($news->thumbnail) {
+                Storage::disk('public')->delete($news->thumbnail);
+            }
             $path = $request->file('thumbnail')->store('thumbnails', 'public');
             $data['thumbnail'] = $path;
         }
