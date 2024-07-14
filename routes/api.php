@@ -1,13 +1,15 @@
 <?php
 
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\SocialAuthController;
-use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ArticleController;
-use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\NewsController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\ArticleController;
+use App\Http\Controllers\CultureController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\SocialAuthController;
 
 // Auth Routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -37,3 +39,9 @@ Route::post('articles/upload-image', [ArticleController::class, 'uploadImage']);
 // Route for news
 Route::apiResource('news', NewsController::class);
 Route::post('news/upload-image', [NewsController::class, 'uploadImage']);
+// Route for events
+Route::apiResource('events', EventController::class);
+Route::post('events/upload-image', [EventController::class, 'uploadImage']);
+// Route for cultures
+Route::apiResource('cultures', CultureController::class);
+Route::post('cultures/upload-image', [CultureController::class, 'uploadImage']);
