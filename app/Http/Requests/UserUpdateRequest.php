@@ -19,7 +19,8 @@ class UserUpdateRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'lowercase', 'email', 'email:dns', 'max:255', Rule::unique(User::class)->ignore($this->user()->id)],
             'phone' => ['sometimes', 'string', 'min:8'],
-            'avatar' => ['sometimes', 'image', 'max:1024', "mimes:jpeg,png,jpg,gif,svg"],
+            'avatarImage' => ['sometimes', 'image', 'max:1024', "mimes:jpeg,png,jpg"],
+            'avatarUrl' => ['sometimes', 'active_url'],
         ];
     }
 }

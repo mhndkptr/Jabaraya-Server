@@ -73,13 +73,31 @@ class UserController extends Controller
 
             $user->name = $request->has('name') ? $request->name : $user->name;
             $user->email = $request->has('email') ? $request->email : $user->email;
-            if ($request->hasFile('avatar')) {
-                if ($user->avatar) {
-                    $this->firebaseService->deleteFile($avatarUrl);
+
+            if($request->has('avatarImage')) {
+                if ($request->hasFile('avatarImage')) {
+                    if ($user->avatar) {
+                        $this->firebaseService->deleteFile($avatarUrl);
+                    }
+                    $fileUrl = $this->firebaseService->uploadFileAvatar($request->file('avatarImage'));
+                    $user->avatar = $fileUrl;
                 }
-                $fileUrl = $this->firebaseService->uploadFileAvatar($request->file('avatar'));
-                $user->avatar = $fileUrl;
+            } else if ($request->has('avatarUrl')) {
+                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media') {
+                    return response()->json([
+                        'status' => false,
+                        'statusCode' => 401,
+                        'message' => 'Avatar url is not valid',
+                    ], 401);
+                }
+
+                $avatarUrl = $request->avatarUrl;
+                $user->avatar = $avatarUrl;
+            } else {
+                $avatarUrl = 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-null.png?alt=media';
+                $user->avatar = $avatarUrl;
             }
+
             $user->phone = $request->has('phone') ? $request->phone : $user->phone;
             $user->save();
     

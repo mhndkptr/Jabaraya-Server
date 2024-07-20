@@ -8,9 +8,17 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use App\Services\FirebaseService;
 
 class AuthController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+
     public function register(Request $request)
     {
         try 
@@ -20,8 +28,9 @@ class AuthController extends Controller
                 'email' => 'required|string|email|max:255|unique:users|email:dns',
                 'password' => 'required|string|min:8',
                 'password_confirmation' => 'required|string|min:8|same:password',
-                'avatar' => 'nullable|string',
-                'phone' => 'nullable|string',
+                'avatarUrl' => 'sometimes|string',
+                'avatarImage' => 'sometimes|image|max:1024|mimes:jpeg,png,jpg',
+                'phone' => 'required|string',
             ]);
     
             if ($validator->fails()) {
@@ -32,9 +41,14 @@ class AuthController extends Controller
                     'errors' => $validator->errors()
                 ], 401);
             }
-    
-            if ($request->avatar) {
-                if ($request->avatar != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatar != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media') {
+
+            if($request->has('avatarImage')) {
+                if ($request->hasFile('avatarImage')) {
+                    $fileUrl = $this->firebaseService->uploadFileAvatar($request->file('avatarImage'));
+                    $avatarUrl = $fileUrl;
+                }
+            } else if ($request->has('avatarUrl')) {
+                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media') {
                     return response()->json([
                         'status' => false,
                         'statusCode' => 401,
@@ -42,7 +56,7 @@ class AuthController extends Controller
                     ], 401);
                 }
 
-                $avatarUrl = $request->avatar;
+                $avatarUrl = $request->avatarUrl;
             } else {
                 $avatarUrl = 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-null.png?alt=media';
             }
@@ -53,6 +67,7 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
                 'avatar' => $avatarUrl,
                 'phone' => $request->phone,
+                'role' => 'user',
             ]);
     
             $token = $user->createToken('USER_PERSONAL_TOKEN')->accessToken;
