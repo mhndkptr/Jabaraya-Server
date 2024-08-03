@@ -53,17 +53,17 @@ class EventController extends Controller
     }
     public function uploadImage(Request $request)
     {
-        $request->validate([
-            'upload' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
-
         if ($request->hasFile('upload')) {
-            $path = $request->file('upload')->store('images', 'public');
-            $url = Storage::url($path);
+            $file = $request->file('upload');
+            $filename = time() . '.' . $file->getClientOriginalExtension();
+            $filePath = storage_path('app/public/images'); // Change to storage path
+            $file->move($filePath, $filename);
 
-            return response()->json(['url' => $url], 200);
+            $url = asset('storage/images/' . $filename); // Adjust URL for storage
+            return response()->json(['uploaded' => true, 'url' => $url]);
+        } else {
+            return response()->json(['uploaded' => false, 'error' => ['message' => 'File not uploaded']], 400);
         }
-        return response()->json(['message' => 'No image uploaded'], 400);
     }
 
     /**
