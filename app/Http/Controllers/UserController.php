@@ -22,53 +22,69 @@ class UserController extends Controller
 
     public function index()
     {
-        $userData = auth()->user();
-        if ($userData->role === 'admin') {
-            $users = User::all();
-            return response()->json([
-                'status' => true,
-                'statusCode' => 200,
-                'message' => 'User information',
-                'data' => $users,
-            ], 200);
-        } else {
+        try {
+            $userData = Auth::user();
+            if ($userData->role === 'admin') {
+                $users = User::all();
+                return response()->json([
+                    'status' => true,
+                    'statusCode' => 200,
+                    'message' => 'User information',
+                    'data' => $users,
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 403,
+                    'message' => 'Your current role not authorized',
+                ], 403);
+            }
+        } catch(\Throwable $th) {
             return response()->json([
                 'status' => false,
-                'statusCode' => 401,
-                'message' => 'Your current role not authorized',
-            ], 401);
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
         }
     }
 
     public function show()
     {
-        $userData = auth()->user();
-        return response()->json([
-            'status' => true,
-            'statusCode' => 200,
-            'message' => 'Profile information',
-            'data' => [
-                'user' => $userData,
-                'social_auth' => ($userData->providerAuths()->where('user_id', $userData->id)->exists() ? $userData->providerAuths()->where('user_id', $userData->id)->first()->provider_name : null),
-            ]
-        ], 200);
+        try {
+            $userData = Auth::user();
+            return response()->json([
+                'status' => true,
+                'statusCode' => 200,
+                'message' => 'Profile information',
+                'data' => [
+                    'user' => $userData,
+                    'social_auth' => ($userData->providerAuths()->where('user_id', $userData->id)->exists() ? $userData->providerAuths()->where('user_id', $userData->id)->pluck('provider_name') : null),
+                ]
+            ], 200);
+        } catch(\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
+        }
     }
 
     public function update(UserUpdateRequest $request)
     {
         try
         {
-            $avatarUrl = auth()->user()->avatar;
+            $avatarUrl = Auth::user()->avatar;
 
             $request->user()->fill($request->validated());
 
-            $user = auth()->user();
+            $user = Auth::user();
             if (($user->providerAuths()->where('user_id', $user->id)->exists()) && $request->has('email')) {
                 return response()->json([
                     'status' => false,
-                    'statusCode' => 401,
+                    'statusCode' => 422,
                     'message' => 'Email cannot be change',
-                ], 401);
+                ], 422);
             }
 
             $user->name = $request->has('name') ? $request->name : $user->name;
@@ -83,12 +99,12 @@ class UserController extends Controller
                     $user->avatar = $fileUrl;
                 }
             } else if ($request->has('avatarUrl')) {
-                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media') {
+                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-null.png?alt=media') {
                     return response()->json([
                         'status' => false,
-                        'statusCode' => 401,
+                        'statusCode' => 422,
                         'message' => 'Avatar url is not valid',
-                    ], 401);
+                    ], 422);
                 }
 
                 $avatarUrl = $request->avatarUrl;
@@ -107,7 +123,7 @@ class UserController extends Controller
                 'message' => 'Profile successfully updated',
                 'data' => [
                     'user' => $user,
-                    'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->first()->provider_name : null),
+                    'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->pluck('provider_name') : null),
                 ],
             ], 200);
         } catch(\Throwable $th) {
@@ -124,12 +140,12 @@ class UserController extends Controller
         try
         {
             $user = Auth::user();
-            if (($user->providerAuths()->where('user_id', $user->id)->exists())) {
+            if (($user->providerAuths()->where('user_id', $user->id)->exists()) && $user->password === null) {
                 return response()->json([
                     'status' => false,
-                    'statusCode' => 401,
+                    'statusCode' => 422,
                     'message' => 'Password cannot be change',
-                ], 401);
+                ], 422);
             }
 
             $validator = Validator::make($request->all(), [
@@ -139,16 +155,21 @@ class UserController extends Controller
             ]);
     
             if ($validator->fails()) {
-                return response()->json($validator->errors(), 400);
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 422,
+                    'message' => 'validation error',
+                    'errors' => $validator->errors()
+                ], 422);
             }
 
     
             if (!Hash::check($request->current_password, $user->password)) {
                 return response()->json([
                     'status' => false,
-                    'statusCode' => 400,
+                    'statusCode' => 422,
                     'message' => 'Current password is incorrect',
-                ], 400);
+                ], 422);
             }
     
             $user->password = Hash::make($request->new_password);
