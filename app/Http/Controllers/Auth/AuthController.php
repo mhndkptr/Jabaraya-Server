@@ -30,16 +30,17 @@ class AuthController extends Controller
                 'password_confirmation' => 'required|string|min:8|same:password',
                 'avatarUrl' => 'sometimes|string',
                 'avatarImage' => 'sometimes|image|max:1024|mimes:jpeg,png,jpg',
-                'phone' => 'required|string',
+                'phone' => 'required|string|min:8',
             ]);
     
             if ($validator->fails()) {
                 return response()->json([
                     'status' => false,
-                    'statusCode' => 401,
+                    'statusCode' => 422,
                     'message' => 'validation error',
                     'errors' => $validator->errors()
-                ], 401);
+                ], 422);
+
             }
 
             if($request->has('avatarImage')) {
@@ -48,12 +49,12 @@ class AuthController extends Controller
                     $avatarUrl = $fileUrl;
                 }
             } else if ($request->has('avatarUrl')) {
-                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media') {
+                if ($request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-1.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-2.png?alt=media' && $request->avatarUrl != 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-null.png?alt=media') {
                     return response()->json([
                         'status' => false,
-                        'statusCode' => 401,
+                        'statusCode' => 422,
                         'message' => 'Avatar url is not valid',
-                    ], 401);
+                    ], 422);
                 }
 
                 $avatarUrl = $request->avatarUrl;
@@ -79,7 +80,7 @@ class AuthController extends Controller
                 'data' => [
                     'token' => $token,
                     'user' => $user,
-                    'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->first()->provider_name : null),
+                    'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->pluck('provider_name') : null),
                 ],
             ], 200);
         } catch(\Throwable $th) {
@@ -108,15 +109,15 @@ class AuthController extends Controller
                     'data' => [
                         'token' => $token,
                         'user' => $user,
-                        'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->first()->provider_name : null),
+                        'social_auth' => ($user->providerAuths()->where('user_id', $user->id)->exists() ? $user->providerAuths()->where('user_id', $user->id)->pluck('provider_name') : null),
                     ],
                 ], 200);
             } else {
                 return response()->json([
                     'status' => false,
-                    'statusCode' => 401,
+                    'statusCode' => 422,
                     'message' => 'Email & password does not match',
-                ], 401);
+                ], 422);
             }
         } catch(\Throwable $th) {
             return response()->json([

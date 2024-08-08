@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\User;
 use Illuminate\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class UserUpdateRequest extends FormRequest
 {
@@ -22,5 +23,17 @@ class UserUpdateRequest extends FormRequest
             'avatarImage' => ['sometimes', 'image', 'max:1024', "mimes:jpeg,png,jpg"],
             'avatarUrl' => ['sometimes', 'active_url'],
         ];
+    }
+
+    public function failedValidation($validator)
+    {
+        throw new HttpResponseException(
+            response()->json([
+                'status' => false,
+                'statusCode' => 422,
+                'message' => 'validation error',
+                'errors' => $validator->errors()
+            ], 422)
+        );
     }
 }

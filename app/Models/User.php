@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProviderAuth::class);
     }
+
+    public function travelPlans()
+    {
+        return $this->hasMany(TravelPlan::class);
+    }
 }

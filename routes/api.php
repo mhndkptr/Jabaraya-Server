@@ -10,6 +10,10 @@ use App\Http\Controllers\CultureController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\DestinationController;
+use App\Http\Controllers\TravelPlanController;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Response;
 
 // Auth Routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -29,6 +33,43 @@ Route::middleware('auth:api')->group(function () {
 // Social Routes
 Route::get('login/{provider}', [SocialAuthController::class, 'redirectToProvider']);
 Route::get('login/{provider}/callback', [SocialAuthController::class, 'handleProviderCallback']);
+Route::post('login/{provider}/callback', [SocialAuthController::class, 'handleProviderCallbackForMobile']);
+
+// Show Images
+Route::get('/uploads/{folder}/{filename}', function ( $folder, $filename)
+{
+    $path = storage_path('app/public/'. $folder. '/' . $filename);
+    if (!File::exists($path)) {
+        abort(404);
+    }
+
+    $file = File::get($path);
+    $type = File::mimeType($path);
+
+    $response = Response::make($file, 200);
+    $response->header("Content-Type", $type);
+
+    return $response;
+});
+
+// Travel Plans Routes
+Route::middleware('auth:api')->group(function () {
+    Route::get('travel-plans', [TravelPlanController::class, 'index']);
+    Route::get('travel-plans/{id}', [TravelPlanController::class, 'show']);
+    Route::post('travel-plans', [TravelPlanController::class, 'store']);
+    Route::put('travel-plans/{id}', [TravelPlanController::class, 'update']);
+    Route::delete('travel-plans/{id}', [TravelPlanController::class, 'destroy']);
+    Route::put('travel-plans/start-location/{id}', [TravelPlanController::class, 'updateStartLocation']);
+});
+
+// Destinations Routes
+Route::middleware('auth:api')->group(function () {
+    Route::get('travel-plans/{travelId}/destinations', [DestinationController::class, 'index']);
+    Route::get('travel-plans/{travelId}/destinations/{destinationId}', [DestinationController::class, 'show']);
+    Route::post('travel-plans/{travelId}/destinations', [DestinationController::class, 'store']);
+    Route::put('travel-plans/{travelId}/destinations/{destinationId}', [DestinationController::class, 'update']);
+    Route::delete('travel-plans/{travelId}/destinations/{destinationId}', [DestinationController::class, 'destroy']);
+});
 
 // API Resources
 // Route for categorys
