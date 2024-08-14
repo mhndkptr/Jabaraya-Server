@@ -11,10 +11,13 @@ class CultureController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return Culture::all();
+        $category_id = $request->query('category_id');
+        $cultures = Culture::where('category_id', $category_id)->get();
+        return response()->json($cultures);
     }
+
 
     /**
      * Show the form for creating a new resource.
