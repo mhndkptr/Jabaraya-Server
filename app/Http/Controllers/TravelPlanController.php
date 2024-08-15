@@ -274,4 +274,37 @@ class TravelPlanController extends Controller
             ], 500);
         }
     }
+
+    public function showSingle()
+    {
+        try {
+            $user = Auth::user();
+            $travelPlan = TravelPlan::where('user_id', $user->id)->orderBy('created_at', 'desc')->first();
+            if($travelPlan) {
+                return response()->json([
+                    'status' => true,
+                    'statusCode' => 200,
+                    'message' => 'Display latest travel plan',
+                    'data' => $travelPlan->load([
+                        'startLocation',
+                        'destinations.financialRecord',
+                        'destinations.detailLocation'
+                    ]),
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => true,
+                    'statusCode' => 200,
+                    'message' => 'Display latest travel plan',
+                    'data' => [],
+                ], 200);
+            }
+        } catch(\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
 }

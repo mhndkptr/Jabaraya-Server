@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\article;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
 
 class ArticleController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+    
     /**
      * Display a listing of the resource.
      */
@@ -29,32 +37,37 @@ class ArticleController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'content' => 'required|string',
-        ]);
-
-        $data = $request->all();
-
-        if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+        try {
+            $request->validate([
+                'title' => 'required|string|max:255',
+                'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'content' => 'required|string',
+            ]);
+    
+            $data = $request->all();
+    
+            if ($request->hasFile('thumbnail')) {
+                $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'articleThumbnails');
+                $data['thumbnail'] = $fileUrl;
+            }
+    
+            $article = Article::create($data);
+    
+            return response()->json($article, 201);
+        } catch(\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
         }
-
-        $article = Article::create($data);
-
-        return response()->json($article, 201);
+        
     }
     public function uploadImage(Request $request)
     {
         if ($request->hasFile('upload')) {
-            $file = $request->file('upload');
-            $filename = time() . '.' . $file->getClientOriginalExtension();
-            $filePath = storage_path('app/public/images'); // Change to storage path
-            $file->move($filePath, $filename);
+            $url = $this->firebaseService->uploadFile($request->file('upload'), 'articleImages');
 
-            $url = asset('storage/images/' . $filename); // Adjust URL for storage
             return response()->json(['uploaded' => true, 'url' => $url]);
         } else {
             return response()->json(['uploaded' => false, 'error' => ['message' => 'File not uploaded']], 400);
@@ -83,16 +96,16 @@ class ArticleController extends Controller
     {
         $request->validate([
             'title' => 'sometimes|string|max:255',
-            'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'thumbnail' => 'sometimes|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'content' => 'sometimes|string',
         ]);
         $data = $request->all();
         if ($request->hasFile('thumbnail')) {
             if ($article->thumbnail) {
-                Storage::disk('public')->delete($article->thumbnail);
+                $this->firebaseService->deleteFile($article->thumbnail);
             }
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'articleThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
         $article->update($data);
         return response()->json($article, 200);
@@ -104,7 +117,7 @@ class ArticleController extends Controller
     public function destroy(article $article)
     {
         if ($article->thumbnail) {
-            Storage::disk('public')->delete($article->thumbnail);
+            $this->firebaseService->deleteFile($article->thumbnail);
         }
 
         $article->delete();

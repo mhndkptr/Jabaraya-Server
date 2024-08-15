@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\news;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
 
 class NewsController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+    
     /**
      * Display a listing of the resource.
      */
@@ -39,8 +47,8 @@ class NewsController extends Controller
         $data = $request->all();
 
         if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'newsThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $news = News::create($data);
@@ -50,12 +58,7 @@ class NewsController extends Controller
     public function uploadImage(Request $request)
     {
         if ($request->hasFile('upload')) {
-            $file = $request->file('upload');
-            $filename = time() . '.' . $file->getClientOriginalExtension();
-            $filePath = storage_path('app/public/images'); // Change to storage path
-            $file->move($filePath, $filename);
-
-            $url = asset('storage/images/' . $filename); // Adjust URL for storage
+            $url = $this->firebaseService->uploadFile($request->file('upload'), 'newsImages');
             return response()->json(['uploaded' => true, 'url' => $url]);
         } else {
             return response()->json(['uploaded' => false, 'error' => ['message' => 'File not uploaded']], 400);
@@ -94,10 +97,10 @@ class NewsController extends Controller
 
         if ($request->hasFile('thumbnail')) {
             if ($news->thumbnail) {
-                Storage::disk('public')->delete($news->thumbnail);
+                $this->firebaseService->deleteFile($news->thumbnail);
             }
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'newsThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $news->update($data);
@@ -111,7 +114,7 @@ class NewsController extends Controller
     public function destroy(news $news)
     {
         if ($news->thumbnail) {
-            Storage::disk('public')->delete($news->thumbnail);
+            $this->firebaseService->deleteFile($news->thumbnail);
         }
 
         $news->delete();

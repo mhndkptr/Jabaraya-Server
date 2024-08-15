@@ -5,9 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\culture;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
+use Illuminate\Support\Facades\DB;
 
 class CultureController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+    
     /**
      * Display a listing of the resource.
      */
@@ -15,6 +24,12 @@ class CultureController extends Controller
     {
         $category_id = $request->query('category_id');
         $cultures = Culture::where('category_id', $category_id)->get();
+        return response()->json($cultures);
+    }
+    
+    public function indexAll()
+    {
+        $cultures = DB::table('cultures')->get();
         return response()->json($cultures);
     }
 
@@ -42,8 +57,8 @@ class CultureController extends Controller
         $data = $request->all();
 
         if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'cultureThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $culture = Culture::create($data);
@@ -53,12 +68,8 @@ class CultureController extends Controller
     public function uploadImage(Request $request)
     {
         if ($request->hasFile('upload')) {
-            $file = $request->file('upload');
-            $filename = time() . '.' . $file->getClientOriginalExtension();
-            $filePath = storage_path('app/public/images'); // Change to storage path
-            $file->move($filePath, $filename);
+            $url = $this->firebaseService->uploadFile($request->file('upload'), 'cultureImages');
 
-            $url = asset('storage/images/' . $filename); // Adjust URL for storage
             return response()->json(['uploaded' => true, 'url' => $url]);
         } else {
             return response()->json(['uploaded' => false, 'error' => ['message' => 'File not uploaded']], 400);
@@ -99,10 +110,10 @@ class CultureController extends Controller
         if ($request->hasFile('thumbnail')) {
             // Delete the old thumbnail if it exists
             if ($culture->thumbnail) {
-                Storage::disk('public')->delete($culture->thumbnail);
+                $this->firebaseService->deleteFile($culture->thumbnail);
             }
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'cultureThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $culture->update($data);
@@ -116,7 +127,7 @@ class CultureController extends Controller
     public function destroy(culture $culture)
     {
         if ($culture->thumbnail) {
-            Storage::disk('public')->delete($culture->thumbnail);
+            $this->firebaseService->deleteFile($culture->thumbnail);
         }
 
         $culture->delete();

@@ -48,6 +48,122 @@ class UserController extends Controller
         }
     }
 
+    public function adminDelete(Request $request, $id)
+    {
+        try {
+            $userData = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'password' => 'required|string|min:8',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 422,
+                    'message' => 'validation error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            if (!Hash::check($request->password, $userData->password)) {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 422,
+                    'message' => 'Password is incorrect',
+                ], 422);
+            }
+
+            if ($userData->role === 'admin') {
+                $selectedUser = User::where('id', $id)->first();
+
+                if (!$selectedUser) {
+                    return response()->json([
+                        'status' => false,
+                        'statusCode' => 404,
+                        'message' => 'User not found',
+                    ], 404);
+                }
+                
+                if($selectedUser->role === "admin") {
+                    return response()->json([
+                        'status' => false,
+                        'statusCode' => 403,
+                        'message' => 'You cannot delete this account',
+                    ], 403);
+                }
+
+                $selectedUser->delete();
+                return response()->json([
+                    'status' => true,
+                    'statusCode' => 200,
+                    'message' => 'User deleted successfully',
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 403,
+                    'message' => 'Your current role not authorized',
+                ], 403);
+            }
+        } catch(\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
+
+    public function delete(Request $request)
+    {
+        try {
+            $userData = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'password' => 'required|string|min:8',
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 422,
+                    'message' => 'validation error',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            if (!Hash::check($request->password, $userData->password)) {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 422,
+                    'message' => 'Password is incorrect',
+                ], 422);
+            }
+            
+            if($userData->role === "admin") {
+                return response()->json([
+                    'status' => false,
+                    'statusCode' => 403,
+                    'message' => 'You cannot delete this account',
+                ], 403);
+            }
+                
+            $userData->delete();
+            return response()->json([
+                'status' => true,
+                'statusCode' => 200,
+                'message' => 'User deleted successfully',
+            ], 200);
+        } catch(\Throwable $th) {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => $th->getMessage()
+            ], 500);
+        }
+    }
+
     public function show()
     {
         try {
@@ -95,7 +211,7 @@ class UserController extends Controller
                     if ($user->avatar) {
                         $this->firebaseService->deleteFile($avatarUrl);
                     }
-                    $fileUrl = $this->firebaseService->uploadFileAvatar($request->file('avatarImage'));
+                    $fileUrl = $this->firebaseService->uploadFile($request->file('avatarImage'), 'avatars');
                     $user->avatar = $fileUrl;
                 }
             } else if ($request->has('avatarUrl')) {
@@ -106,12 +222,13 @@ class UserController extends Controller
                         'message' => 'Avatar url is not valid',
                     ], 422);
                 }
-
+                if ($user->avatar) {
+                    $this->firebaseService->deleteFile($avatarUrl);
+                }
                 $avatarUrl = $request->avatarUrl;
                 $user->avatar = $avatarUrl;
             } else {
-                $avatarUrl = 'https://firebasestorage.googleapis.com/v0/b/jabaraya-test.appspot.com/o/avatars%2Fdefault-avatar-null.png?alt=media';
-                $user->avatar = $avatarUrl;
+                $user->avatar = $user->avatar;
             }
 
             $user->phone = $request->has('phone') ? $request->phone : $user->phone;

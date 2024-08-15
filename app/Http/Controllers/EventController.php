@@ -5,9 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FirebaseService;
 
 class EventController extends Controller
 {
+    protected $firebaseService;
+
+    public function __construct(FirebaseService $firebaseService)
+    {
+        $this->firebaseService = $firebaseService;
+    }
+    
     /**
      * Display a listing of the resource.
      */
@@ -43,8 +51,8 @@ class EventController extends Controller
         $data = $request->all();
 
         if ($request->hasFile('thumbnail')) {
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'eventThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $event = Event::create($data);
@@ -54,12 +62,7 @@ class EventController extends Controller
     public function uploadImage(Request $request)
     {
         if ($request->hasFile('upload')) {
-            $file = $request->file('upload');
-            $filename = time() . '.' . $file->getClientOriginalExtension();
-            $filePath = storage_path('app/public/images'); // Change to storage path
-            $file->move($filePath, $filename);
-
-            $url = asset('storage/images/' . $filename); // Adjust URL for storage
+            $url = $this->firebaseService->uploadFile($request->file('upload'), 'eventImages');
             return response()->json(['uploaded' => true, 'url' => $url]);
         } else {
             return response()->json(['uploaded' => false, 'error' => ['message' => 'File not uploaded']], 400);
@@ -103,10 +106,10 @@ class EventController extends Controller
         if ($request->hasFile('thumbnail')) {
             // Delete the old thumbnail if it exists
             if ($event->thumbnail) {
-                Storage::disk('public')->delete($event->thumbnail);
+                $this->firebaseService->deleteFile($event->thumbnail);
             }
-            $path = $request->file('thumbnail')->store('thumbnails', 'public');
-            $data['thumbnail'] = $path;
+            $fileUrl = $this->firebaseService->uploadFile($request->file('thumbnail'), 'eventThumbnails');
+            $data['thumbnail'] = $fileUrl;
         }
 
         $event->update($data);
@@ -120,7 +123,7 @@ class EventController extends Controller
     public function destroy(event $event)
     {
         if ($event->thumbnail) {
-            Storage::disk('public')->delete($event->thumbnail);
+            $this->firebaseService->deleteFile($event->thumbnail);
         }
 
         $event->delete();

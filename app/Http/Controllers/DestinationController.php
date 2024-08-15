@@ -6,6 +6,7 @@ use App\Models\Destination;
 use App\Models\DetailLocation;
 use App\Models\FinancialRecord;
 use App\Models\TravelPlan;
+use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +79,7 @@ class DestinationController extends Controller
             $validator = Validator::make($request->all(), [
                 'startAt' => 'required|date',
                 'endAt' => 'required|date',
-                'vehicle' => 'required|string|max:255',
+                'vehicle' => 'required|string|max:255|in:car,bus,motorcycle,plane,train',
                 'note' => 'sometimes|string',
                 'financialTransportation' => 'required|numeric',
                 'financialLodging' => 'required|numeric',
@@ -125,6 +126,32 @@ class DestinationController extends Controller
                 'destination_id' => $destination->id,
             ]);
             $financialRecord->save();
+
+            $startLocation = DetailLocation::findOrFail($travelPlan->start_location_id);
+            $placeLocations = [
+                (object) [
+                    'lat'=> $startLocation->lat,
+                    'lng'=> $startLocation->lng,
+                ],
+            ];
+            $newEstimation = 0;
+            $travelPlan->destinations->map(function ($destination) use (&$placeLocations, &$newEstimation) {
+                $newEstimation += $destination->financialRecord->total;
+                array_push($placeLocations, (object) [
+                    'lat' => $destination->detailLocation->lat,
+                    'lng' => $destination->detailLocation->lng,
+                ]);
+            });
+
+            $newTotalDistances = $this->calculateTotalDistance($placeLocations);
+            $earliestAndLatestDates = $this->getEarliestAndLatestDates($travelPlan->destinations);
+
+            $travelPlan->update([
+                'totalDistance' => $newTotalDistances,
+                'startAt' => $earliestAndLatestDates["startAt"],
+                'endAt' => $earliestAndLatestDates["endAt"],
+                'estimation' => $newEstimation,
+            ]);
     
             return response()->json([
                 'status' => true,
@@ -225,21 +252,21 @@ class DestinationController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'startAt' => 'required|date',
-                'endAt' => 'required|date',
-                'vehicle' => 'required|string|max:255',
-                'note' => 'sometimes|string',
-                'financialTransportation' => 'required|numeric',
-                'financialLodging' => 'required|numeric',
-                'financialConsumption' => 'required|numeric',
-                'financialEmergencyFund' => 'required|numeric',
-                'financialSouvenir' => 'required|numeric',
+                'startAt' => 'sometimes|date',
+                'endAt' => 'sometimes|date',
+                'vehicle' => 'sometimes|string|max:255|in:car,bus,motorcycle,plane,train',
+                'note' => 'sometimes|string|nullable',
+                'financialTransportation' => 'sometimes|numeric',
+                'financialLodging' => 'sometimes|numeric',
+                'financialConsumption' => 'sometimes|numeric',
+                'financialEmergencyFund' => 'sometimes|numeric',
+                'financialSouvenir' => 'sometimes|numeric',
                 'financialTotal' => 'sometimes|numeric',
-                'locationName' => 'required|string|max:255',
-                'locationPlaceId' => 'required|string|max:255',
-                'locationAddress' => 'required|string',
-                'locationLng' => 'required|numeric',
-                'locationLat' => 'required|numeric',
+                'locationName' => 'sometimes|string|max:255',
+                'locationPlaceId' => 'sometimes|string|max:255',
+                'locationAddress' => 'sometimes|string',
+                'locationLng' => 'sometimes|numeric',
+                'locationLat' => 'sometimes|numeric',
             ]);
 
             if ($validator->fails()) {
@@ -262,24 +289,56 @@ class DestinationController extends Controller
             }
 
             $detailLocation = DetailLocation::findOrFail($destination->detail_location_id);
-            $detailLocation->update([
-                'place_id' => $request->locationPlaceId,
-                'name' => $request->locationName,
-                'address' => $request->locationAddress,
-                'lat' => $request->locationLat,
-                'lng' => $request->locationLng,
-            ]);
+            $detailLocationDataUpdate = [
+                'place_id' => $request->has('locationPlaceId') ? $request->locationPlaceId : $detailLocation->place_id,
+                'name' => $request->has('locationName') ? $request->locationName : $detailLocation->name,
+                'address' => $request->has('locationAddress') ? $request->locationAddress : $detailLocation->address,
+                'lat' => $request->has('locationLat') ? $request->locationLat : $detailLocation->lat,
+                'lng' => $request->has('locationLng') ? $request->locationLng : $detailLocation->lng,
+            ];
+            $detailLocation->update($detailLocationDataUpdate);
 
-            $destination->update($request->all());
+            $destination->update([
+                'startAt' => $request->has('startAt') ? $request->startAt : $destination->startAt,
+                'endAt' => $request->has('endAt') ? $request->endAt : $destination->endAt,
+                'note' => $request->has('note') ? (empty($request->note) ? null : $request->note) : $destination->note,
+                'vehicle' => $request->has('vehicle') ? $request->vehicle : $destination->vehicle,
+            ]);
 
             $financialRecord = FinancialRecord::where('destination_id', $destination->id)->firstOrFail();
             $financialRecord->update([
-                'transportation' => $request->financialTransportation,
-                'lodging' => $request->financialLodging,
-                'consumption' => $request->financialConsumption,
-                'emergencyFund' => $request->financialEmergencyFund,
-                'souvenir' => $request->financialSouvenir,
-                'total' => $request->has('financialTotal') ? $request->financialTotal : $request->financialTransportation + $request->financialLodging + $request->financialConsumption + $request->financialEmergencyFund + $request->financialSouvenir,
+                'transportation' => $request->has('financialTransportation') ? $request->financialTransportation : $financialRecord->transportation,
+                'lodging' => $request->has('financialLodging') ? $request->financialLodging : $financialRecord->lodging,
+                'consumption' => $request->has('financialConsumption') ? $request->financialConsumption : $financialRecord->consumption,
+                'emergencyFund' => $request->has('financialEmergencyFund') ? $request->financialEmergencyFund : $financialRecord->emergencyFund,
+                'souvenir' => $request->has('financialSouvenir') ? $request->financialSouvenir : $financialRecord->souvenir,
+                'total' => $request->has('financialTotal') ? $request->financialTotal : ($request->has('financialTransportation') ? $request->financialTransportation : $financialRecord->transportation) + ($request->has('financialLodging') ? $request->financialLodging : $financialRecord->lodging) + ($request->has('financialConsumption') ? $request->financialConsumption : $financialRecord->consumption) + ($request->has('financialEmergencyFund') ? $request->financialEmergencyFund : $financialRecord->emergencyFund) + ($request->has('financialSouvenir') ? $request->financialSouvenir : $financialRecord->souvenir),
+            ]);
+
+            $startLocation = DetailLocation::findOrFail($travelPlan->start_location_id);
+            $placeLocations = [
+                (object) [
+                    'lat'=> $startLocation->lat,
+                    'lng'=> $startLocation->lng,
+                ],
+            ];
+            $newEstimation = 0;
+            $travelPlan->destinations->map(function ($destination) use (&$placeLocations, &$newEstimation) {
+                $newEstimation += $destination->financialRecord->total;
+                array_push($placeLocations, (object) [
+                    'lat' => $destination->detailLocation->lat,
+                    'lng' => $destination->detailLocation->lng,
+                ]);
+            });
+
+            $newTotalDistances = $this->calculateTotalDistance($placeLocations);
+            $earliestAndLatestDates = $this->getEarliestAndLatestDates($travelPlan->destinations);
+
+            $travelPlan->update([
+                'totalDistance' => $newTotalDistances,
+                'startAt' => $earliestAndLatestDates["startAt"],
+                'endAt' => $earliestAndLatestDates["endAt"],
+                'estimation' => $newEstimation,
             ]);
 
             return response()->json([
@@ -337,6 +396,46 @@ class DestinationController extends Controller
             }
             $destination->delete();
 
+            
+            $destinations = Destination::where('travel_plan_id', $travelId)->first();
+
+            if ($destinations) {
+                $travelPlan = TravelPlan::where('id', $travelId)->where('user_id', $user->id)->first();
+                $startLocation = DetailLocation::findOrFail($travelPlan->start_location_id);
+                $placeLocations = [
+                    (object) [
+                        'lat'=> $startLocation->lat,
+                        'lng'=> $startLocation->lng,
+                    ],
+                ];
+                $newEstimation = 0;
+                $travelPlan->destinations->map(function ($destination) use (&$placeLocations, &$newEstimation) {
+                    $newEstimation += $destination->financialRecord->total;
+                    array_push($placeLocations, (object) [
+                        'lat' => $destination->detailLocation->lat,
+                        'lng' => $destination->detailLocation->lng,
+                    ]);
+                });
+
+                $newTotalDistances = $this->calculateTotalDistance($placeLocations);
+                $earliestAndLatestDates = $this->getEarliestAndLatestDates($travelPlan->destinations);
+
+                $travelPlan->update([
+                    'totalDistance' => $newTotalDistances,
+                    'startAt' => $earliestAndLatestDates["startAt"],
+                    'endAt' => $earliestAndLatestDates["endAt"],
+                    'estimation' => $newEstimation,
+                ]);
+            } else {
+                $travelPlan = TravelPlan::where('id', $travelId)->where('user_id', $user->id)->first();
+                $travelPlan->update([
+                    'totalDistance' => 0,
+                    'startAt' => null,
+                    'endAt' => null,
+                    'estimation' => 0,
+                ]);
+            }
+            
             return response()->json([
                 'status' => true,
                 'statusCode' => 200,
@@ -349,5 +448,67 @@ class DestinationController extends Controller
                 'message' => $th->getMessage()
             ], 500);
         }
+    }
+
+    public function calculateHaversineDistance($coords1, $coords2)
+    {
+        $toRad = function ($value) {
+            return $value * pi() / 180;
+        };
+
+        $R = 6371;
+        $lat1 = $toRad($coords1->lat);
+        $lat2 = $toRad($coords2->lat);
+        $deltaLat = $toRad($coords2->lat - $coords1->lat);
+        $deltaLng = $toRad($coords2->lng - $coords1->lng);
+
+        $a = sin($deltaLat / 2) * sin($deltaLat / 2) +
+            cos($lat1) * cos($lat2) *
+            sin($deltaLng / 2) * sin($deltaLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        $distance = $R * $c;
+        return $distance;
+    }
+
+    public function calculateTotalDistance($placeLocations)
+    {
+        if (count($placeLocations) < 2) {
+            return 0;
+        }
+
+        $totalKm = 0;
+
+        for ($i = 0; $i < count($placeLocations) - 1; $i++) {
+            $originCoords = $placeLocations[$i];
+            $destinationCoords = $placeLocations[$i + 1];
+
+            $distance = $this->calculateHaversineDistance($originCoords, $destinationCoords);
+            $totalKm += $distance;
+        }
+
+        return $totalKm;
+    }
+
+    public function getEarliestAndLatestDates($destinations)
+    {
+        $earliest = $destinations[0]->startAt;
+        $latest = $destinations[0]->endAt;
+
+        foreach ($destinations as $destination) {
+            if ($destination->startAt < $earliest) {
+                $earliest = $destination->startAt;
+            }
+
+            if ($destination->endAt > $latest) {
+                $latest = $destination->endAt;
+            }
+        }
+
+        return [
+            'startAt' => $earliest,
+            'endAt' => $latest,
+        ];
     }
 }

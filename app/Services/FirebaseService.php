@@ -19,10 +19,34 @@ class FirebaseService
         $this->storage = $factory->createStorage();
     }
 
-    public function uploadFileAvatar(UploadedFile $file, $folder = 'avatars')
+    public function deleteFile($fileUrl)
+    {
+        $bucket = $this->storage->getBucket();
+        $parsed_url = parse_url($fileUrl);
+        $path = $parsed_url['path'];
+        $fileName = basename($path);
+        $decodedFileName = urldecode($fileName);
+        $segments = explode('/', $decodedFileName);
+        $folder = $segments[0] ?? 'etc';
+        $fileName = $segments[1] ?? 'undefined';
+        $object = $bucket->object($folder.'/'.$fileName);
+
+        if ($object->exists()) {
+            if ($fileName != "default-avatar-1.png" && $fileName != "default-avatar-2.png" && $fileName != "default-avatar-null.png") {
+                $object->delete();
+            }
+        } else {
+            return response()->json([
+                'status' => false,
+                'statusCode' => 500,
+                'message' => 'No file was deleted.'
+            ], 500);
+        }
+    }
+
+    public function uploadFile(UploadedFile $file, $folder = 'etc')
     {
         $fileName = $folder . '/' . uniqid() . '.' . $file->getClientOriginalExtension();
-        // $fileName = $folder . '/' . '.' . $file->getClientOriginalExtension();
         $bucket = $this->storage->getBucket();
         $object = $bucket->upload(
             fopen($file->getRealPath(), 'r'),
@@ -39,29 +63,6 @@ class FirebaseService
         ]);
 
         return $object->info()['mediaLink'];
-    }
-
-    public function deleteFile($fileUrl)
-    {
-        $bucket = $this->storage->getBucket();
-        $parsed_url = parse_url($fileUrl);
-        $path = $parsed_url['path'];
-        $fileName = basename($path);
-        $decoded_path = urldecode($path);
-        $fileName = basename($decoded_path);
-        $object = $bucket->object('avatars/'.$fileName);
-
-        if ($object->exists()) {
-            if ($fileName != "default-avatar-1.png" && $fileName != "default-avatar-2.png" && $fileName != "default-avatar-null.png") {
-                $object->delete();
-            }
-        } else {
-            return response()->json([
-                'status' => false,
-                'statusCode' => 500,
-                'message' => 'No file was deleted.'
-            ], 500);
-        }
     }
 }
 

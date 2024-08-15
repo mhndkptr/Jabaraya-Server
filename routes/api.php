@@ -11,9 +11,12 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\DestinationController;
+use App\Http\Controllers\RecomendationPlaceController;
 use App\Http\Controllers\TravelPlanController;
+use App\Http\Middleware\Cors;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
+
 
 // Auth Routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -28,6 +31,8 @@ Route::middleware('auth:api')->group(function () {
     Route::get('user', [UserController::class, 'show']);
     Route::put('user', [UserController::class, 'update']);
     Route::post('user/change-password', [UserController::class, 'changePassword']);
+    Route::delete('user', [UserController::class, 'delete']);
+    Route::delete('user/{id}', [UserController::class, 'adminDelete']);
 });
 
 // Social Routes
@@ -55,6 +60,7 @@ Route::get('/uploads/{folder}/{filename}', function ( $folder, $filename)
 // Travel Plans Routes
 Route::middleware('auth:api')->group(function () {
     Route::get('travel-plans', [TravelPlanController::class, 'index']);
+    Route::get('travel-plans/latest', [TravelPlanController::class, 'showSingle']);
     Route::get('travel-plans/{id}', [TravelPlanController::class, 'show']);
     Route::post('travel-plans', [TravelPlanController::class, 'store']);
     Route::put('travel-plans/{id}', [TravelPlanController::class, 'update']);
@@ -71,6 +77,9 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('travel-plans/{travelId}/destinations/{destinationId}', [DestinationController::class, 'destroy']);
 });
 
+// Recomendations places route
+Route::get('proxy/recomendation-places', [RecomendationPlaceController::class, 'getRecomendationPlace'])->middleware(Cors::class, 'auth:api');
+
 // API Resources
 // Route for categorys
 Route::apiResource('categorys', CategoryController::class);
@@ -86,3 +95,4 @@ Route::post('events/upload-image', [EventController::class, 'uploadImage']);
 // Route for cultures
 Route::apiResource('cultures', CultureController::class);
 Route::post('cultures/upload-image', [CultureController::class, 'uploadImage']);
+Route::get('cultures-all', [CultureController::class, 'indexAll']);

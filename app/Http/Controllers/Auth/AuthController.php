@@ -45,7 +45,7 @@ class AuthController extends Controller
 
             if($request->has('avatarImage')) {
                 if ($request->hasFile('avatarImage')) {
-                    $fileUrl = $this->firebaseService->uploadFileAvatar($request->file('avatarImage'));
+                    $fileUrl = $this->firebaseService->uploadFile($request->file('avatarImage'), 'avatars');
                     $avatarUrl = $fileUrl;
                 }
             } else if ($request->has('avatarUrl')) {
